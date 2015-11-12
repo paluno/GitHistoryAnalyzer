@@ -61,8 +61,9 @@ namespace FindGitNewcomers
                         {
                             if (lastDate == DateTime.MinValue)
                                 throw new InvalidDataException("Author without date!");
-                            else if (existingDevelopers.Add(logLine.Substring("Author: ".Length)))
-                                swOutputCSV.WriteLine(logLine.Substring("Author: ".Length) + ";" + lastDate.ToString("u"));
+                            else foreach (string deanonymizedAuthor in af.DeanonymizeAuthor(logLine.Substring("Author: ".Length)))
+                                if (existingDevelopers.Add(deanonymizedAuthor))
+                                    swOutputCSV.WriteLine(deanonymizedAuthor + ";" + lastDate.ToString("u"));
                             lastDate = DateTime.MinValue;
                         }
                     }
