@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using ExpertiseExplorer.Algorithms.RepositoryManagement;
 
 namespace FindGitNewcomers
 {
@@ -22,6 +23,27 @@ namespace FindGitNewcomers
 
                 DateTime lastDate = DateTime.MinValue;
                 ISet<string> existingDevelopers = new HashSet<string>();    // these are no newcomers
+
+                AliasFinder af = new AliasFinder();
+                if (args.Length == 3)
+                {
+                    if (!File.Exists(args[2]))
+                    {       // author list does not exist yet, will be created
+                        IEnumerable<IEnumerable<string>> authorAliasList =
+                            af.Consolidate(
+                                gitLog
+                                    .Where(line => line.StartsWith("Author: "))
+                                    .Select(line => line.Substring("Author: ".Length))
+                                    .ToArray()
+                            );
+                        File.WriteAllLines(args[2],
+                                authorAliasList
+                                    .Select(aliases => string.Join(";", aliases))
+                                    .OrderBy(s => s)
+                            );
+                    }
+                    af.InitializeMappingFromAuthorList(File.ReadAllLines(args[2]));
+                }
 
                 using (StreamWriter swOutputCSV = File.CreateText(args[1]))
                 {
@@ -46,10 +68,7 @@ namespace FindGitNewcomers
                     }
                 }
 
-                if (args.Length == 3)
-                    File.WriteAllLines(args[2],
-                        existingDevelopers.OrderBy(s => s)
-                        );
+
             }
         }
 
