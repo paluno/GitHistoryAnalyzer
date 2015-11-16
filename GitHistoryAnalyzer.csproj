@@ -7,8 +7,8 @@
     <ProjectGuid>{3CA66332-99EC-4095-9A3E-2E4971C38651}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>FindGitNewcomers</RootNamespace>
-    <AssemblyName>FindGitNewcomers</AssemblyName>
+    <RootNamespace>GitHistoryAnalyzer</RootNamespace>
+    <AssemblyName>GitHistoryAnalyzer</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>

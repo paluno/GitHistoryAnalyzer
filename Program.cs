@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using ExpertiseExplorer.Algorithms.RepositoryManagement;
 
-namespace FindGitNewcomers
+namespace GitHistoryAnalyzer
 {
     class Program
     {
