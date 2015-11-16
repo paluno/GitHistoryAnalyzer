@@ -10,7 +10,7 @@ namespace GitHistoryAnalyzer
 {
     class Program
     {
-        public enum Operation { FindNewcomers, ContributorNums };
+        public enum Operation { FindNewcomers, CountContributors };
         
         static void Main(string[] args)
         {
@@ -24,15 +24,17 @@ namespace GitHistoryAnalyzer
             }
             else
             {
-                string[] gitLog = File.ReadAllLines(args[0]);
+                string gitLogFile = args[1];
+                string outputCsvFile = args[2];
 
-                DateTime lastDate = DateTime.MinValue;
-                ISet<string> existingDevelopers = new HashSet<string>();    // these are no newcomers
+                string[] gitLog = File.ReadAllLines(gitLogFile);
 
                 AliasFinder af = new AliasFinder();
-                if (args.Length == 3)
+                if (args.Length == 4)
                 {
-                    if (!File.Exists(args[2]))
+                    string authorList = args[3];
+
+                    if (!File.Exists(authorList))
                     {       // author list does not exist yet, will be created
                         IEnumerable<IEnumerable<string>> authorAliasList =
                             af.Consolidate(
@@ -41,23 +43,50 @@ namespace GitHistoryAnalyzer
                                     .Select(line => line.Substring("Author: ".Length))
                                     .ToArray()
                             );
-                        File.WriteAllLines(args[2],
+                        File.WriteAllLines(outputCsvFile,
                                 authorAliasList
                                     .Select(aliases => string.Join(";", aliases))
                                     .OrderBy(s => s)
                             );
                     }
-                    af.InitializeMappingFromAuthorList(File.ReadAllLines(args[2]));
+                    af.InitializeMappingFromAuthorList(File.ReadAllLines(authorList));
                 }
 
-                lastDate = FindNewcomers(args, gitLog, lastDate, existingDevelopers, af);
-
+                switch (currentOperation)
+                {
+                    case Operation.FindNewcomers:
+                        FindNewcomers(outputCsvFile, gitLog, af);
+                        break;
+                    case Operation.CountContributors:
+                        CountContributors(outputCsvFile, gitLog, af);
+                        break;
+                    default:
+                        throw new NotImplementedException("Operation " + currentOperation + " is not yet implemented.");
+                }
             }
         }
 
-        private static DateTime FindNewcomers(string[] args, string[] gitLog, DateTime lastDate, ISet<string> existingDevelopers, AliasFinder af)
+        private static void CountContributors(string outputCsvFile, string[] gitLog, AliasFinder af)
         {
-            using (StreamWriter swOutputCSV = File.CreateText(args[1]))
+            File.WriteAllText(
+                outputCsvFile,
+                "author;commmits\r\n" +         // a header for the CSV
+                string.Join("\r\n",             // one row per author
+                    gitLog
+                        .Where(logLine => logLine.StartsWith("Author: "))                                   // find all authors
+                        .SelectMany(logLine => af.DeanonymizeAuthor(logLine.Substring("Author: ".Length)))  // consolidate aliases
+                        .GroupBy(x => x)                                                                    // count by author
+                        .Select(group => group.Key + ";" + group.Count())                                   // bring to CSV format
+                    )
+            );
+        }
+
+        private static DateTime FindNewcomers(string outputFileName, string[] gitLog, AliasFinder af)
+        {
+            ISet<string> existingDevelopers = new HashSet<string>();    // these are no newcomers
+            DateTime lastDate = DateTime.MinValue;
+
+            using (StreamWriter swOutputCSV = File.CreateText(outputFileName))
             {
                 swOutputCSV.WriteLine("author;date");
 
@@ -94,14 +123,14 @@ namespace GitHistoryAnalyzer
             Console.WriteLine("GitHistoryAnalyzer Operation GITLOGFILE OUTPUTCSVFILE [AUTHORLIST]");
             Console.WriteLine();
             Console.WriteLine("Possible Operations:");
-            Console.WriteLine(" 1. FindNewcomers    - Find all contributors to a git repository by the date of their first commit");
-            Console.WriteLine(" 2. ContributorNums  - Count the all time number of commits for each contributor");
+            Console.WriteLine(" 1. FindNewcomers     - Find all contributors to a git repository by the date of their first commit");
+            Console.WriteLine(" 2. CountContributors - Count the all time number of commits for each contributor");
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine(" GITLOGFILE      - Path to a git log file as generated from TortoiseGit per Copy & Paste");
             Console.WriteLine(" OUTPUTCSVFILE   - Path to which results will be written as CSV; overwrites existing files");
             Console.WriteLine(" AUTHORLIST      - Path to a file with authors; one author per row, semicolons separate synonyms;");
-            Console.WriteLine("                   Will be created with all heuristically deanonymized author nams if it does not");
+            Console.WriteLine("                   Will be created with all heuristically deanonymized author names if it does not");
             Console.WriteLine("                   exist already.");
         }
     }
