@@ -10,7 +10,7 @@ namespace GitHistoryAnalyzer
 {
     class Program
     {
-        public enum Operation { FindNewcomers, CountContributors };
+        public enum Operation { FindNewcomers, CountContributors, CountActiveContributors };
         
         static void Main(string[] args)
         {
@@ -60,9 +60,53 @@ namespace GitHistoryAnalyzer
                     case Operation.CountContributors:
                         CountContributors(outputCsvFile, gitLog, af);
                         break;
+                    case Operation.CountActiveContributors:
+                        CountActiveContributors(outputCsvFile, gitLog, af);
+                        break;
                     default:
                         throw new NotImplementedException("Operation " + currentOperation + " is not yet implemented.");
                 }
+            }
+        }
+
+        private static void CountActiveContributors(string outputCsvFile, string[] gitLog, AliasFinder af)
+        {
+            ISet<string> devsOfTheMonth = new HashSet<string>();
+            DateTime currentMonth = DateTime.MinValue;
+            DateTime lastDate = DateTime.MinValue;
+
+            using (StreamWriter swOutputCSV = File.CreateText(outputCsvFile))
+            {
+                swOutputCSV.WriteLine("month;number of active contributors");
+
+                foreach (string logLine in gitLog.Reverse())    // proceed chronologically
+                {
+                    if (logLine.StartsWith("Date: "))
+                        if (lastDate != DateTime.MinValue)
+                            throw new InvalidDataException("Two dates without author in between!");
+                        else
+                        {
+                            lastDate = DateTime.Parse(logLine.Substring("Date: ".Length));
+                            if (lastDate.Month != currentMonth.Month || lastDate.Year != currentMonth.Year)
+                            {
+
+                                swOutputCSV.WriteLine(currentMonth.ToString("yyyy-MM") + ";" + devsOfTheMonth.Count);
+                                devsOfTheMonth.Clear();
+                                currentMonth = lastDate;
+                            }
+                        }
+
+                    if (logLine.StartsWith("Author: "))
+                    {
+                        if (lastDate == DateTime.MinValue)
+                            throw new InvalidDataException("Author without date!");
+                        else
+                            foreach (string deanonymizedAuthor in af.DeanonymizeAuthor(logLine.Substring("Author: ".Length)))
+                                devsOfTheMonth.Add(deanonymizedAuthor);
+                        lastDate = DateTime.MinValue;
+                    }
+                }
+                swOutputCSV.WriteLine(currentMonth.ToString("yyyy-MM") + ";" + devsOfTheMonth.Count);
             }
         }
 
@@ -81,7 +125,7 @@ namespace GitHistoryAnalyzer
             );
         }
 
-        private static DateTime FindNewcomers(string outputFileName, string[] gitLog, AliasFinder af)
+        private static void FindNewcomers(string outputFileName, string[] gitLog, AliasFinder af)
         {
             ISet<string> existingDevelopers = new HashSet<string>();    // these are no newcomers
             DateTime lastDate = DateTime.MinValue;
@@ -110,8 +154,6 @@ namespace GitHistoryAnalyzer
                     }
                 }
             }
-
-            return lastDate;
         }
 
         static void PrintUsage()
@@ -125,6 +167,8 @@ namespace GitHistoryAnalyzer
             Console.WriteLine("Possible Operations:");
             Console.WriteLine(" 1. FindNewcomers     - Find all contributors to a git repository by the date of their first commit");
             Console.WriteLine(" 2. CountContributors - Count the all time number of commits for each contributor");
+            Console.WriteLine(" 3. CountActiveContributors - For every month, count the number unique contributors");
+
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine(" GITLOGFILE      - Path to a git log file as generated from TortoiseGit per Copy & Paste");
