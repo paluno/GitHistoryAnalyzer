@@ -43,7 +43,7 @@ namespace GitHistoryAnalyzer
                                     .Select(line => line.Substring("Author: ".Length))
                                     .ToArray()
                             );
-                        File.WriteAllLines(outputCsvFile,
+                        File.WriteAllLines(authorList,
                                 authorAliasList
                                     .Select(aliases => string.Join(";", aliases))
                                     .OrderBy(s => s)
